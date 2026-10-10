@@ -3,6 +3,8 @@
 use App\Jobs\RunCampaign;
 use App\Jobs\RunWorkflow;
 use App\Models\Campaign;
+use App\Models\Reminder;
+use App\Models\Task;
 use App\Models\Tenant;
 use App\Models\WebhookEvent;
 use App\Models\WorkflowRun;
@@ -15,8 +17,8 @@ use Illuminate\Support\Facades\Schedule;
 Artisan::command('growth:tick', function () {
     foreach (Tenant::where('suspended', false)->get() as $tenant) {
         app(TenantContext::class)->run($tenant, function () use ($tenant) {
-            foreach (\App\Models\Task::whereNull('completed_at')->whereNull('reminded_at')->where('due_at', '<=', now()->addMinutes(15))->get() as $task) {
-                \App\Models\Reminder::updateOrCreate(['task_id' => $task->id], ['title' => $task->title, 'read_at' => null]);
+            foreach (Task::whereNull('completed_at')->whereNull('reminded_at')->where('due_at', '<=', now()->addMinutes(15))->get() as $task) {
+                Reminder::updateOrCreate(['task_id' => $task->id], ['title' => $task->title, 'read_at' => null]);
                 $task->update(['reminded_at' => now()]);
             }
             foreach (Campaign::where('status', 'scheduled')->where('scheduled_at', '<=', now())->get() as $campaign) {

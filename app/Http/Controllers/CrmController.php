@@ -112,14 +112,23 @@ class CrmController extends Controller
     {
         Gate::authorize('update', $company);
         $data = $request->validate(['name' => ['required', 'string', 'max:160', Rule::unique('companies')->where('tenant_id', app(TenantContext::class)->id())->ignore($company->id)], 'website' => 'nullable|url:http,https|max:255']);
-        DB::transaction(function () use ($company, $data) { $company->update($data); Audit::record('company.updated', $company); });
+        DB::transaction(function () use ($company, $data) {
+            $company->update($data);
+            Audit::record('company.updated', $company);
+        });
+
         return back()->with('status', 'Company updated.');
     }
 
     public function destroyCompany(Company $company)
     {
         Gate::authorize('delete', $company);
-        DB::transaction(function () use ($company) { Contact::where('company_id', $company->id)->update(['company_id' => null]); Audit::record('company.deleted', $company); $company->delete(); });
+        DB::transaction(function () use ($company) {
+            Contact::where('company_id', $company->id)->update(['company_id' => null]);
+            Audit::record('company.deleted', $company);
+            $company->delete();
+        });
+
         return back()->with('status', 'Company deleted. Contacts retained as independent.');
     }
 
@@ -165,7 +174,11 @@ class CrmController extends Controller
     public function destroyDeal(Deal $deal)
     {
         Gate::authorize('delete', $deal);
-        DB::transaction(function () use ($deal) { Audit::record('deal.deleted', $deal); $deal->delete(); });
+        DB::transaction(function () use ($deal) {
+            Audit::record('deal.deleted', $deal);
+            $deal->delete();
+        });
+
         return back()->with('status', 'Deal deleted.');
     }
 
@@ -188,14 +201,22 @@ class CrmController extends Controller
         $data = $request->validate(['title' => 'required|string|max:160', 'due_at' => 'required|date_format:Y-m-d\TH:i', 'kind' => 'required|in:task,appointment']);
         $data['due_at'] = Carbon::createFromFormat('Y-m-d\TH:i', $data['due_at'], app(TenantContext::class)->tenant->timezone)->utc();
         $data['reminded_at'] = null;
-        DB::transaction(function () use ($task, $data) { $task->update($data); Audit::record('task.updated', $task); });
+        DB::transaction(function () use ($task, $data) {
+            $task->update($data);
+            Audit::record('task.updated', $task);
+        });
+
         return back()->with('status', 'Task or appointment updated.');
     }
 
     public function destroyTask(Task $task)
     {
         Gate::authorize('delete', $task);
-        DB::transaction(function () use ($task) { Audit::record('task.deleted', $task); $task->delete(); });
+        DB::transaction(function () use ($task) {
+            Audit::record('task.deleted', $task);
+            $task->delete();
+        });
+
         return back()->with('status', 'Task deleted.');
     }
 

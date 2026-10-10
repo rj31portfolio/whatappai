@@ -7,6 +7,7 @@ use App\Models\Campaign;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\Message;
+use App\Models\Reminder;
 use App\Models\ReportExport;
 use App\Services\Reports;
 use Illuminate\Support\Facades\Gate;
@@ -41,13 +42,15 @@ class AnalyticsController extends Controller
     public function reminders()
     {
         Gate::authorize('viewAny', Contact::class);
-        return view('modules.reminders', ['reminders' => \App\Models\Reminder::latest()->paginate(30)]);
+
+        return view('modules.reminders', ['reminders' => Reminder::latest()->paginate(30)]);
     }
 
-    public function readReminder(\App\Models\Reminder $reminder)
+    public function readReminder(Reminder $reminder)
     {
         Gate::authorize('manage-inbox');
         $reminder->update(['read_at' => now()]);
+
         return back()->with('status', 'Reminder marked read for the team.');
     }
 

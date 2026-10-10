@@ -1,27 +1,56 @@
-# Deployment and operations
+﻿# Deployment and operations
 
-Phase 1 is a foundation, not a completed production SaaS. External APIs, password recovery, team administration, subscription enforcement and retention jobs are deliberately deferred in ARCHITECTURE.md.
+## Runtime and environment
 
-## Environment
+Use PHP 8.2+ with PDO MySQL, mbstring, OpenSSL, XML, curl and fileinfo; Composer 2; MySQL 8+ (local validation also uses MariaDB 10.4). Serve only public/. Keep .env, APP_KEY, dumps and storage private. Preserve APP_KEY for encrypted credentials and webhook payloads.
 
-Use PHP 8.2+ with PDO MySQL, mbstring, OpenSSL, ctype, XML, tokenizer, curl, fileinfo; Composer 2; MySQL 8.0+ (the local validation environment uses compatible MariaDB 10.4). Serve only `public/`. No Node build is needed for the current self-contained dashboard CSS; Livewire serves its own assets. Keep `.env` outside version control; retain `APP_KEY` securely across deployments and restores.
+Production requires APP_ENV=production, APP_DEBUG=false, public HTTPS APP_URL, dedicated MySQL credentials, SESSION_SECURE_COOKIE=true and real SMTP/application mail. Configure trusted proxies, security headers and restricted database/Redis networking. Never seed demo accounts or use local root credentials in production. Configure RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, BILLING_GRACE_DAYS and supported WHATSAPP_GRAPH_VERSION. Current billing accepts test keys only.
 
-Set `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://your-domain`, correct MySQL credentials, `SESSION_SECURE_COOKIE=true`, `SESSION_SAME_SITE=lax`. Use a dedicated database user with schema rights only during migration, then reduce rights for runtime. Do not use the local root account in production. Enable HTTPS, trust only your actual proxy, restrict database/Redis network access, and configure web-server security headers. Install dependencies with `composer install --no-dev --optimize-autoloader`; run `php artisan migrate --force`, `php artisan optimize` and `php artisan view:cache` during deployment. Do not seed demo data in production.
+Deploy using composer install --no-dev --optimize-autoloader, php artisan migrate --force, php artisan optimize and php artisan queue:restart. Back up before migrations. No Node build is required.
 
-## Workers and scheduler
+## Queue and scheduler
 
-Default queue and cache drivers use the database. For Redis set `QUEUE_CONNECTION=redis`, `CACHE_STORE=redis`, `REDIS_CLIENT=phpredis` and configure Redis + the PHP extension. Use supervised `php artisan queue:work --tries=3 --timeout=90` processes and restart workers using `php artisan queue:restart` after deployments. Phase 1 does not enqueue external sends. Review `php artisan queue:failed`; retry only after understanding the cause and confirming idempotency. Add cron every minute: `* * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1`. No business automation schedules are active yet.
+Run php artisan queue:work --tries=3 --timeout=90 and php artisan schedule:work locally. Production needs supervised workers and minute cron:
 
-## Webhooks and secrets
+```cron
+* * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1
+```
 
-There are no active provider webhook endpoints yet. Planned URLs are `/webhooks/whatsapp`, `/webhooks/email/{provider}` and `/webhooks/razorpay`; do not configure them until the implementing phase passes signature/idempotency tests. Future integrations must use server-side encrypted credentials, short timeouts, retry limits, signature verification on the original raw bytes, and explicit disconnected states. Never exempt ordinary web routes from CSRF.
+Defaults use database queues/cache. Redis is supported by setting QUEUE_CONNECTION=redis, CACHE_STORE=redis and REDIS_CLIENT=phpredis, with the service/extension configured.
 
-## Backup and restore
+Growth:tick creates due reminders, dispatches scheduled campaigns/workflows and generates cadence-based reports. Scheduler overlap is locked. Processed webhook payloads expire after 30 days; broader retention/deletion remains pending. Inspect php artisan queue:failed before retrying. Outbound message jobs have one attempt: ambiguous provider acceptance must not cause duplicate sends. Confirm remote state before recovering unknown messages.
 
-Schedule encrypted database backups, store off-host with restricted access and defined retention. Example: `mysqldump --single-transaction --routines --triggers -u backup_user -p growthdesk > growthdesk.sql`. Supply credentials interactively or via a restricted option file, never command history. Back up private storage plus `APP_KEY` through a secrets vault. Restore into an isolated database: create the database, `mysql -u restore_user -p growthdesk_restore < growthdesk.sql`, point a separate app instance to it, run migration status, verify record counts and tenant access tests, then document the restore time. Test restores regularly. Database-only backups will be insufficient once document uploads are implemented.
+## Provider setup and webhooks
 
-## Monitoring and security
+Owners/managers configure encrypted credentials in Integrations. AI requires an available model, positive input/output price estimates and a positive monthly budget. Exact approved FAQ auto-replies are opt-in; generated responses remain drafts.
 
-Use `/up` for process health; it is not an integration or database readiness check. Monitor web errors, database connectivity, failed jobs, storage space, slow queries and backup age. Audit screens show action metadata only. Avoid logging contact contents, passwords, tokens or provider payloads. Sessions expire per Laravel configuration; logout invalidates the session. Membership revocation takes effect on the next request. Phase 1 has no account self-registration; provision production owners through a controlled administrative process until invitation flows are delivered.
+Resend requires a verified sender domain and permissions for sending and required domain-read/receiving operations. Set SPF/DKIM through the provider and a suitable DMARC policy. Imports do not grant consent. Ensure unsubscribe URLs use public HTTPS APP_URL.
 
-Run `php artisan test` for fast SQLite tests, and the documented isolated MySQL run before releases. Never point RefreshDatabase tests at the application database. Disable all demo accounts in production. Release gates include password recovery, MFA policy, retention/deletion, real integration tests, queue replay safety, and a backup restore exercise.
+WhatsApp requires official Cloud API business/phone IDs, token, Meta app secret and verification token. Sync approved templates. Parameterized templates are blocked pending mapping support. Human and automated replies share consent/window checks.
+
+Configure URLs displayed on each integration:
+
+- https://your-domain/webhooks/integration/{publicId} for that business's WhatsApp or Resend integration. WhatsApp GET verifies connection; POST checks Meta HMAC. Resend checks Svix signatures and timestamp tolerance.
+- https://your-domain/webhooks/razorpay for Razorpay subscription/payment events. Use a separate webhook secret. Plans need matching real Razorpay test plan IDs; interval, amount and currency are verified server-side.
+
+Only webhooks/* is CSRF-exempt. Preserve raw request bodies through proxies. Payloads are encrypted, failures record safe errors and event IDs are processed once. Never log credentials or full customer payloads.
+
+Team/Admin generate private invitation URLs for authorized operators to deliver; automatic invitation email is not implemented. Password recovery uses Laravel's broker. Local MAIL_MAILER=log writes reset links to local logs; replace it before public deployment.
+
+## Backup, restore and local database
+
+Back up MySQL transactionally, private documents/reports and encryption keys. Encrypt backups, restrict access and keep off-host copies with defined retention:
+
+```console
+mysqldump --single-transaction --routines --triggers -u backup_user -p growthdesk > growthdesk.sql
+```
+
+Use interactive passwords or restricted option files. Restore into an isolated app/database, check migrations, counts, tenant permissions, private downloads and decryption. Document restore duration. A production restore exercise remains a release gate.
+
+This workspace runs a separate local MariaDB on port 3307 under storage/mysql-runtime because C: is full, with temporary files under storage/mysql-temp. Existing records were copied without deleting the XAMPP database. Runtime files and dumps are ignored by version control. README contains the restart command.
+
+## Monitoring and release
+
+/up is process health, not provider readiness. Monitor database/storage, queue age/failures, webhook errors, provider connections, subscription reconciliation and backup age. Reconcile ambiguous subscriptions before retrying checkout. Payment documents are receipts, not tax invoices.
+
+Before production: validate real sandbox sends/payments and replay, disable demos, configure mail/HTTPS, complete privacy/retention and remaining billing flows, review credential privileges, test restores and establish incident monitoring. README lists scope limits.

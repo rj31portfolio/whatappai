@@ -1,89 +1,77 @@
-﻿# GrowthDesk — Phase 1
+﻿# GrowthDesk
 
-Laravel 12, PHP 8.2+, Blade + Livewire 4, MySQL multi-tenant CRM foundation. The original product specification is preserved in `txt`.
+Laravel 12, PHP 8.2+, Blade/Livewire 4 and MySQL tenant-isolated business CRM. The original request is preserved in `txt`. The existing dashboard theme is retained.
 
-Implemented: login/logout and throttling; validated tenant switching; six tenant roles plus a separate Super Admin role; tenant-scoped queries and policies; contact CRUD/search, duplicate checks, explainable lead scoring and permission flags; company creation; deals and stage updates; follow-ups and idempotent completion; measured dashboard; CSV export with formula protection; audit metadata; responsive dashboard; guarded, repeatable demo seed data.
+## Working panels
 
-AI, WhatsApp, email campaigns, workflow automation and Razorpay are planned in later phases. Their screens show **Not connected**. No external sends, AI calls or payments are simulated. Production release gates and schema plans are documented in [Architecture](docs/ARCHITECTURE.md) and [Operations](docs/OPERATIONS.md).
+| Panel | Implemented behavior |
+| --- | --- |
+| Overview / CRM | Measured KPIs; contact CRUD, tags, custom fields, assignment, duplicate checks and explainable scoring; company editing; pipeline deals; tasks, appointments and shared reminders |
+| Shared inbox | Email/WhatsApp histories, assignment, status, human handover, reviewed drafts, queued replies and delivery states |
+| Email campaigns | Draft editing, reusable text templates, consent-aware segments, scheduling, cancellation, CSV import, suppression and signed unsubscribe flows |
+| Integrations | Encrypted per-business OpenAI, DeepSeek, Claude, Resend and official WhatsApp Cloud credentials; real connection tests and disconnected states |
+| AI knowledge / assistant | Approved FAQs, products, services, policies and text documents; lexical retrieval, unknown-question handover, budget reservations, explicit fallback and usage estimates |
+| Automations | Visual step editor with triggers, score conditions, delays, task/message actions; bounded execution, snapshots, replay protection and execution history |
+| Analytics | Measured source, score, pipeline and message counts; estimated AI costs; private CSV exports and scheduled report archives |
+| Team / account / API | Expiring private invitations, roles, last-owner protection, password changes/recovery and revocable tenant-bound Sanctum bearer tokens |
+| Billing | Razorpay test subscriptions, server reconciliation and signed webhooks, payment receipts, cancellation and entitlement enforcement |
+| Super Admin | Business provisioning/suspension, user suspension, plan creation, feature flags, maintenance controls and aggregate health/error visibility |
 
-## Start locally
+Protected actions check server permissions. Provider requests are real HTTP calls; missing credentials do not produce simulated success. Demo campaigns/workflows are inactive. No external messages or payments were sent during development.
 
-1. Install PHP 8.2+ with PDO MySQL and Composer 2. Start MySQL 8+ (local validation also passed on XAMPP MariaDB 10.4).
-2. Run `composer install`.
-3. Copy `.env.example` to `.env` if needed and set your database credentials. The supplied local `.env` uses `127.0.0.1:3306`, database `growthdesk`, local root with no password. This is only for the existing local XAMPP instance.
-4. Create the database:
+## Run locally
 
-```sql
-CREATE DATABASE growthdesk CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-5. Run:
+Open **http://127.0.0.1:8000** after starting these processes in separate terminals:
 
 ```console
-php artisan key:generate
-php artisan migrate --seed
 php artisan serve --host=127.0.0.1 --port=8000
+php artisan queue:work --tries=3 --timeout=90
+php artisan schedule:work
 ```
 
-Open http://127.0.0.1:8000. On this workspace, dependencies, the app key, MySQL migrations and demo records have already been installed. You can start with `php artisan serve`. Keep the existing app key when using existing encrypted data. No frontend build is required.
+This workspace is installed and seeded. Its `.env` connects to **127.0.0.1:3307**. Because C: is full, a separate local MariaDB instance was initialized under `storage/mysql-runtime`, with temporary files under `storage/mysql-temp`. Existing records were copied; the original XAMPP database was preserved. Restart this local database on Windows with:
 
-## Demo accounts
+```powershell
+Start-Process 'C:\xampp\mysql\bin\mysqld.exe' -ArgumentList '--defaults-file=D:\aitool\storage\mysql-runtime\my.ini','--bind-address=127.0.0.1','--port=3307','--tmpdir=D:\aitool\storage\mysql-temp' -WindowStyle Hidden
+```
 
-All demo accounts use password **`DemoPass!2026`**.
+For a fresh install: install Composer dependencies, copy `.env.example` to `.env`, configure MySQL and create database `growthdesk` with utf8mb4. Generate `APP_KEY` only for a new installation, then run `php artisan migrate --seed`. Preserve the existing key when retaining encrypted credentials. No frontend build is required.
 
-| Email | Role / access |
+## Demo access
+
+All demo accounts use **`DemoPass!2026`**.
+
+| Email | Access |
 | --- | --- |
-| owner@demo.test | Business Owner in both demo businesses |
-| agency@demo.test | Agency Owner in both demo businesses |
+| owner@demo.test | Business Owner in both businesses |
+| agency@demo.test | Agency Owner in both businesses |
 | manager@demo.test | Business Manager in Acme |
-| sales@demo.test | Sales Agent in Acme; CRM writes, no export |
-| marketing@demo.test | Marketing Manager in Acme; read + export |
+| sales@demo.test | Sales Agent in Acme |
+| marketing@demo.test | Marketing Manager in Acme |
 | analyst@demo.test | Read-only Analyst in Acme |
-| education@demo.test | Business Owner in BrightPath only |
-| admin@demo.test | Super Admin; aggregate counts, no business membership |
+| education@demo.test | Owner in BrightPath only |
+| admin@demo.test | Super Admin; no implicit access to private business data |
 
-Demo data includes 2 businesses, 6 companies, 18 contacts, 18 deals and 10 tasks. Owner and agency accounts can switch businesses with the header selector and Switch button. Re-run `php artisan db:seed` to add missing demo fixtures without resetting records or passwords. The seeder refuses production environments and non-demo tenants. Use a separate empty local database for demos; demo email addresses are reserved. Do not seed production.
+Fixtures include two businesses, companies, contacts, deals, follow-ups, fictional approved knowledge, draft campaigns, paused workflows and plans. The guarded seeder refuses production. Use demos only in a local/test database.
 
-Contact phones must use international format, e.g. `+919876543210`. Lead scores are deterministic: referral + email + phone = hot; at least one channel = warm; neither = cold. These are heuristic scores, not AI predictions. Consent flags are a Phase 1 record only; channel evidence and opt-out events must be delivered before any sending is enabled.
+## Configure integrations
+
+Open Integrations as an owner/manager, save credentials and run connection tests. Configure AI selection, model prices, positive monthly budget, reply mode, sending hours and limits in Settings. Consent flags alone do not permit sending: record channel-specific evidence in Campaigns. WhatsApp free-text replies require an open customer service window; otherwise an approved supported template is required.
+
+Set Razorpay test environment variables and create matching provider plans through Super Admin. Live payment keys are intentionally rejected. Configure application mail for password recovery; the local default logs reset notifications. Queued actions require the worker and scheduler. Public HTTPS webhooks and sender authentication are described in [Operations](docs/OPERATIONS.md).
 
 ## Validation
 
 ```console
 php artisan test
 php vendor/bin/pint --test
+php artisan view:cache
 ```
 
-Fast tests use isolated SQLite in memory. Run the same suite against an isolated MySQL database:
+Fast tests use isolated SQLite. Create `growthdesk_testing` before running `php vendor/phpunit/phpunit/phpunit -c phpunit.mysql.xml`; this resets only the test database, and a guard rejects other MySQL database names. Browser checks use installed Chrome: `npm ci`, then `npm run test:e2e` against local demo data. See [Validation](docs/VALIDATION.md).
 
-```sql
-CREATE DATABASE growthdesk_testing CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
+## Scope and release limits
 
-```console
-php artisan config:clear
-php vendor/phpunit/phpunit/phpunit -c phpunit.mysql.xml
-```
+This is a functional development implementation with remaining production work. Billing covers test subscriptions/cancellation; coupons, setup fees, plan changes and tax invoices remain. Email content is text with basic segmentation. WhatsApp sync handles the first 100 templates and blocks parameterized templates. Knowledge supports UTF-8 text/Markdown and lexical retrieval; PDF/OCR, vector search and live crawling remain. Scheduled summaries are downloadable report archives. Advanced attribution, complete privacy deletion/retention, MFA, global provider credentials and a production restore exercise remain release work. Live provider delivery and paid checkout require credentialed sandbox verification.
 
-The MySQL config uses `.env` host/user/password but forces database `growthdesk_testing`. It resets tables in that database. A guard rejects other MySQL database names before migrations. Never put production credentials in a test environment.
-
-Optional browser checks use installed Google Chrome:
-
-```console
-npm ci
-npm run test:e2e
-```
-
-Seed local demo records first. Tests start a PHP server on port 8000 if one is not already running; use the demo database, not production. Set `PLAYWRIGHT_CHANNEL=msedge` to use installed Edge instead. Tests cover real Livewire HTTP updates, business switching, mobile overflow, analyst controls and CSRF. Screenshots are written to `test-results/`. For Linux CI install Chrome through Playwright or adjust the channel configuration.
-
-## Code map
-
-- `app/Tenancy`, `app/Models/Concerns`: fail-closed tenant context and scopes.
-- `app/Http/Middleware/ResolveTenant.php`: per-request membership validation before bindings, including Livewire requests.
-- `app/Policies`, `app/Enums/Role.php`: server permissions.
-- `app/Http/Controllers`, `app/Http/Requests`: authenticated endpoints and validation.
-- `app/Services`: scoring and transactional audit recording.
-- `database/migrations`, `database/seeders`: MySQL schema, composite tenant foreign keys and guarded fixtures.
-- `resources/views`, `public/css`, `public/js`: Blade/Livewire UI, self-contained styles and form loading states.
-- `tests/Feature`, `tests/Browser`: isolation/security/persistence and browser coverage.
-
-Deployment, HTTPS, queues, scheduler, backups, restore, secrets and planned webhook URLs are covered in [Operations](docs/OPERATIONS.md).
+See [Architecture](docs/ARCHITECTURE.md) and [Operations](docs/OPERATIONS.md).

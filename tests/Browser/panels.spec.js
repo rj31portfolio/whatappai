@@ -8,7 +8,7 @@ test('owner can open every populated panel and use visual workflow controls', as
     await page.getByLabel('Password', { exact: true }).fill('DemoPass!2026');
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/dashboard$/);
-    for (const path of ['/inbox', '/campaigns', '/knowledge', '/ai', '/automations', '/analytics', '/team', '/billing', '/settings', '/account', '/integrations']) {
+    for (const path of ['/inbox', '/campaigns', '/knowledge', '/ai', '/automations', '/analytics', '/team', '/billing', '/settings', '/account', '/integrations', '/api-access', '/reminders']) {
         const response = await page.goto(path);
         expect(response.status(), path).toBe(200);
         await expect(page.locator('main h1').first()).toBeVisible();

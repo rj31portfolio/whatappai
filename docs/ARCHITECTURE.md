@@ -1,70 +1,51 @@
-# GrowthDesk architecture and delivery plan
-
-## Repository inspection
-
-The initial workspace contained only `txt`, the product specification. No app, database, theme, or existing features were present. Phase 1 uses Laravel 12 (compatible with the installed PHP 8.2), Blade and Livewire, and MySQL. The original specification is preserved.
+﻿# Architecture and implementation status
 
 ```mermaid
 flowchart TD
-    Browser[Responsive Blade / Livewire dashboard] --> Web[Laravel session auth / CSRF / throttle]
-    Web --> Tenant[Validated membership / request tenant context]
-    Tenant --> Policy[Role gates and record policies]
-    Policy --> CRM[CRM services / transactions / audit]
-    CRM --> DB[(MySQL: tenant-scoped records)]
-    Policy -. later phases .-> Gateway[AI gateway / grounded retrieval / budgets]
-    Policy -. later phases .-> Queue[Redis or database queue / scheduler]
-    Queue -.-> Providers[Official WhatsApp / email / Razorpay]
-    Providers -. signed webhooks .-> Events[Signature verification / unique event ledger]
-    Events -.-> Queue
+    Browser[Blade / Livewire dashboard] --> Web[Laravel session authentication]
+    API[REST client] --> Token[Sanctum bearer authentication]
+    Web --> Tenant[Membership and tenant context]
+    Token --> Tenant
+    Tenant --> Policies[Role gates and scoped policies]
+    Policies --> CRM[CRM / Inbox / Campaigns / Knowledge / Billing]
+    CRM --> DB[(MySQL composite tenant relationships)]
+    CRM --> Private[Private documents and reports]
+    CRM --> Queue[Database or Redis queue]
+    Scheduler[Minute scheduler] --> Queue
+    Queue --> Checks[Consent / suppression / budgets / entitlements]
+    Checks --> Providers[WhatsApp / Resend / AI / Razorpay]
+    Providers --> Hooks[Signed webhooks and encrypted events]
+    Hooks --> Queue
 ```
 
-Solid lines are implemented in Phase 1; dotted paths are planned. No messaging, AI inference, or paid subscription activation occurs in Phase 1.
+## Tenant and permission boundaries
 
-## Tenant boundary
+TenantContext is request/job-local and restored or cleared in finally. Models use fail-closed global scopes. Tenant IDs are assigned server-side on inserts and cannot change. Web middleware rechecks membership before route binding, including Livewire. REST middleware uses the tenant on the authenticated token and rechecks membership, role, suspension and abilities. Composite foreign keys reject cross-business CRM and communication relationships.
 
-Users are global identities. A unique `(tenant_id, user_id)` membership holds a role. Agency users may have explicit memberships in several businesses; agency role alone grants no access to another business. Super admins have a separate global flag and a limited aggregate admin page; they do not bypass tenant data policies. The selected tenant is stored in the server session and revalidated against current membership on **every request**, including Livewire updates. Tenant middleware runs before route bindings and clears context in `finally` for long-lived workers.
+Owners/agency owners manage teams/billing; managers manage business configuration; marketing managers manage campaigns/automation; sales agents manage CRM/inbox; analysts read only. Super Admin manages global business/user/plan controls without bypassing tenant membership. Ordinary admin screens never expose credentials.
 
-Tenant models have a fail-closed global scope: queries without a resolved context fail. Creation sets tenant ID from the server context and rejects conflicting IDs. Policies additionally compare record ownership and membership. Cross-tenant record URLs return 404. Foreign keys `(tenant_id, company_id)` and `(tenant_id, contact_id)` prevent cross-business associations at the database level. Every future job must resolve its tenant in a `try/finally` block before querying tenant models; never serialize credentials into jobs.
+## Persisted entities
 
-## Phase 1 schema (implemented)
+- Identity: users, tenants, memberships, sessions, password tokens, invitations and personal access tokens.
+- CRM: contacts, companies, deals, tasks/appointments, reminders and audit logs.
+- Communications: conversations, messages, evidenced consent, suppressions, templates, campaigns and recipients.
+- Intelligence: encrypted integrations, approved knowledge and AI usage reservations/settlements.
+- Automation: workflows, execution snapshots and unique event/run keys.
+- Revenue: global plans, tenant subscriptions and verified payments.
+- Operations: encrypted webhook events, private exports, platform flags, queued/failed jobs.
 
-| Entity | Relationships / important indexes |
-| --- | --- |
-| users | Unique email; hashed password; global super-admin flag outside mass assignment |
-| tenants | Unique slug; industry, currency, timezone; demo marker |
-| memberships | Tenant + user foreign keys; unique pair; role |
-| companies | Tenant FK; unique tenant + name; unique tenant + id for composite references |
-| contacts | Tenant FK; tenant + email unique (nullable); tenant + phone unique (nullable); composite company FK; tenant + score/source indexes; consent flags; notes |
-| deals | Tenant FK; composite contact FK; tenant + stage index; decimal amount; expected close date |
-| tasks | Tenant FK; composite contact FK; tenant + due date index; completion timestamp |
-| audit_logs | Tenant FK; actor FK; action, subject type/id; tenant + created_at index; no record contents or credentials |
-| sessions / cache / jobs / failed_jobs | Standard Laravel infrastructure tables |
+Migrations 000001 through 000005 define relationships/indexes. Unique tenant/provider, campaign/contact, conversation/channel/contact and workflow/event keys protect against replay. Message UUIDs and provider message IDs protect duplicate processing.
 
-Tenant records are removed only by an explicit future business-deletion service. Current CRM delete operations cascade associated deals/tasks; company deletion is not exposed. Application writes and audit inserts are in one transaction. No private uploads or public disk links are introduced.
+## Provider and execution safety
 
-## Permission matrix
+Adapters use fixed HTTPS hosts, bounded timeouts, safe errors and no redirects. AI adapters share an interface. Retrieval uses relevant approved tenant knowledge; unknown or sensitive questions hand over. Generated output is reviewable. Automatic inbound replies require exact approved FAQ matches. Monthly AI budget is reserved under tenant row locks before network calls. Fallback must be explicit and fit the budget. Configured model prices are estimates.
 
-| Role | Read CRM | Write CRM | Export | Future tenant settings |
-| --- | --- | --- | --- | --- |
-| Agency Owner | Yes (memberships only) | Yes | Yes | Yes |
-| Business Owner | Yes | Yes | Yes | Yes |
-| Business Manager | Yes | Yes | Yes | Yes |
-| Sales Agent | Yes | Yes | No | No |
-| Marketing Manager | Yes | No | Yes | No |
-| Read-only Analyst | Yes | No | No | No |
-| Super Admin | Aggregate admin only; explicit membership required for CRM | By membership | By membership | Global administration planned |
+Enqueueing and delivery check consent evidence, suppression, plan access, windows, business hours and frequency. A worker claims a message once. Ambiguous provider failures become unknown, avoiding blind duplicate sends. Resend also receives idempotency keys. Campaign recipients and workflow steps persist transactional progress. Workflows have at most 12 steps with snapshots, delays, conditions and retry/cancel controls.
 
-Phase 1 implements CRM read/write/export and aggregate admin permissions. Settings permissions are reserved for future modules, not a claim of implemented administration.
+Webhook controllers verify raw-body signatures before encrypted storage. Workers process event IDs idempotently. WhatsApp phone IDs must match integration configuration. Resend bounces/complaints suppress recipients. Razorpay events trigger server API reconciliation; redirects and checkout creation alone never grant paid access.
 
-## Delivery phases and acceptance gates
+## Delivery and remaining work
 
-1. **Foundation (this delivery):** session login/logout and throttling, tenant switching, roles/policies, companies, contact CRUD/search/scoring/consent, deals and stage changes, follow-up tasks, measured dashboard, safe CSV export, audit history, explicit disconnected integration status, two-business demo seeder, security tests, setup and operations documentation.
-2. **Knowledge + AI:** encrypted integration credentials and owner-only configuration; separate DeepSeek/OpenAI/Claude adapters behind a gateway; provider contract tests, timeout/retry/error mapping, token ledger and atomic budget reservation, permitted fallbacks; approved knowledge ingestion with private files, retrieval, source citations and unknown-question handover. Confirmation tokens for sensitive actions. No fabricated test responses outside test mocks.
-3. **Channels:** official WhatsApp webhook handshake/HMAC validation and tenant mapping by server-owned phone ID; durable unique provider event IDs, shared inbox and handover, approved templates and delivery states. Email provider verification, imports/segments/suppression, signed inbound events, unsubscribe tokens and bounce handling. Sandbox contract tests and queues before enabling sending.
-4. **Automation + reports:** versioned validated graph (trigger/condition/delay/branch/action), bounded steps and cycles, execution ledger and retry backoff, unique action keys, consent/window/hours/frequency/entitlement checks immediately before sends. Measured delivery funnels, attributable conversions, clearly labeled estimates, scheduled CSV summaries.
-5. **Razorpay test billing:** plans/prices/coupons/trials, verified server-side subscriptions, unique signed webhook event ledger, invoices/payments and entitlement state machine, grace periods, upgrades/cancellations, reconciliation and failure tests. Live credentials are a separate deployment configuration.
-6. **Release hardening:** team invitation/revocation and password recovery, super-admin support/suspension controls, API tokens/scopes, private document access tests, retention/export/deletion workflows, backup restore drill, worker monitoring, accessibility/browser checks, load tests and independent security review.
+Foundation, CRM, tenant isolation, demo dashboards, integrations, AI grounding, inbox, campaigns, automations, reports, test billing, API access, team and admin panels are implemented. Tests exercise SQLite/MySQL and Chrome navigation.
 
-## Future schema boundaries (not migrated yet)
-
-All business entities below require tenant FK, tenant-first indexes, policies and isolation tests. Conversations/messages have provider ID deduplication and status history. Campaigns/templates/segments/suppressions/consent_events retain opt-in evidence and opt-outs. Knowledge_documents/chunks/approvals keep source provenance and tenant-scoped retrieval. Integrations encrypt credentials; ai_usage and budget_reservations store numeric token/cost estimates only. Workflows/versions/runs/steps have unique execution keys. Plans/entitlements/subscriptions/payments/invoices/webhook_events record provider authority. An outbox commits external work with domain transactions; consumers use provider idempotency when available and reconciliation for ambiguous responses. Provider logs must redact request bodies, authorization headers and customer content by default.
+Remaining production work: credentialed provider sandbox tests; richer email composition/segments; WhatsApp template parameters/pagination/creation; semantic retrieval/document parsing; attribution; coupons/setup fees/plan changes/tax invoices; full deletion/retention controls; global provider configuration; monitoring and backup restore exercise. These are not claimed complete.
