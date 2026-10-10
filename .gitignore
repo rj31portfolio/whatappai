@@ -22,6 +22,8 @@
 /storage/composer/
 /storage/composer-cache/
 /storage/npm-cache/
+/storage/mysql-*/
+/storage/*backup.sql
 /playwright-report/
 /test-results/
 Homestead.json

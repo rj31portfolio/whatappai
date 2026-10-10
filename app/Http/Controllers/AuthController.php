@@ -19,6 +19,10 @@ class AuthController extends Controller
         if (! Auth::attempt($credentials)) {
             throw ValidationException::withMessages(['email' => 'The email or password is incorrect.']);
         }
+        if (Auth::user()->suspended) {
+            Auth::logout();
+            throw ValidationException::withMessages(['email' => 'This account is suspended. Contact support.']);
+        }
         $request->session()->regenerate();
         $request->session()->forget('tenant_id');
 

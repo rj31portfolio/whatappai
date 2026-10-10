@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Enums\Role;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Deal;
@@ -40,13 +41,16 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('super-admin', fn (User $user) => $user->is_super_admin);
         foreach (['settings', 'team', 'billing', 'marketing', 'inbox'] as $capability) {
             Gate::define('manage-'.$capability, function (User $user) use ($capability) {
-                if (! Gate::forUser($user)->allows('viewAny', Contact::class)) { return false; }
+                if (! Gate::forUser($user)->allows('viewAny', Contact::class)) {
+                    return false;
+                }
                 $role = app(TenantContext::class)->role;
-                $owners = [\App\Enums\Role::AgencyOwner, \App\Enums\Role::BusinessOwner];
+                $owners = [Role::AgencyOwner, Role::BusinessOwner];
+
                 return match ($capability) {
                     'team', 'billing' => in_array($role, $owners, true),
-                    'settings' => in_array($role, [...$owners, \App\Enums\Role::BusinessManager], true),
-                    'marketing' => in_array($role, [...$owners, \App\Enums\Role::BusinessManager, \App\Enums\Role::MarketingManager], true),
+                    'settings' => in_array($role, [...$owners, Role::BusinessManager], true),
+                    'marketing' => in_array($role, [...$owners, Role::BusinessManager, Role::MarketingManager], true),
                     'inbox' => $role->canWriteCrm(),
                 };
             });

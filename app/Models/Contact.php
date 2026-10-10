@@ -14,7 +14,7 @@ class Contact extends Model
 
     public const SCORES = ['cold', 'warm', 'hot'];
 
-    protected $fillable = ['name', 'email', 'phone', 'company_id', 'source', 'score', 'score_reason', 'notes', 'email_consent', 'whatsapp_consent'];
+    protected $fillable = ['name', 'email', 'phone', 'company_id', 'source', 'score', 'score_reason', 'notes', 'email_consent', 'whatsapp_consent', 'assigned_to', 'tags', 'custom_fields'];
 
     protected function casts(): array
     {

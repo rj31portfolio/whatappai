@@ -5,4 +5,4 @@
 <label for="email">Email address</label><input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username">
 <label for="password">Password</label><input id="password" type="password" name="password" required autocomplete="current-password">
 <button class="btn full" type="submit">Sign in →</button></form>
-<p class="small muted">Access is provided by your business administrator.</p></main><script src="{{ asset('js/forms.js') }}" defer></script></body></html>
+<p class="small muted"><a href="{{ route('password.request') }}">Forgot your password?</a></p></main><script src="{{ asset('js/forms.js') }}" defer></script></body></html>

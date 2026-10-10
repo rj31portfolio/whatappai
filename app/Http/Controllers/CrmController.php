@@ -7,8 +7,11 @@ use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\Task;
+use App\Models\Tenant;
 use App\Services\Audit;
 use App\Services\ContactScoring;
+use App\Services\Entitlements;
+use App\Services\WorkflowEngine;
 use App\Tenancy\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -61,9 +64,16 @@ class CrmController extends Controller
         $data = array_merge($data, ContactScoring::evaluate($data));
         DB::transaction(function () use ($data, $contact) {
             $existing = $contact !== null;
+            if (! $existing) {
+                Tenant::whereKey(app(TenantContext::class)->id())->lockForUpdate()->firstOrFail();
+                abort_if(Contact::count() >= app(Entitlements::class)->limits()['contacts'], 422, 'Contact allowance reached.');
+            }
             $contact ??= new Contact;
             $contact->fill($data)->save();
             Audit::record($existing ? 'contact.updated' : 'contact.created', $contact);
+            if (! $existing) {
+                app(WorkflowEngine::class)->trigger('contact.created', $contact, 'contact:'.$contact->id);
+            }
         });
     }
 

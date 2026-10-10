@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\Role;
+use App\Models\PlatformSetting;
 use App\Tenancy\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -18,6 +19,8 @@ class ResolveTenant
             if (! $user) {
                 return $next($request);
             }
+            abort_if($user->suspended, 403, 'This account is suspended.');
+            abort_if(! $user->is_super_admin && PlatformSetting::enabled('maintenance'), 503, 'The platform is undergoing maintenance.');
             $selected = $request->session()->get('tenant_id');
             $tenant = $selected
                 ? $user->tenants()->where('tenants.id', $selected)->first()

@@ -3,12 +3,16 @@
 namespace Database\Seeders;
 
 use App\Enums\Role;
+use App\Models\Campaign;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Deal;
+use App\Models\KnowledgeEntry;
+use App\Models\Plan;
 use App\Models\Task;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\Workflow;
 use App\Services\ContactScoring;
 use App\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
@@ -28,6 +32,10 @@ class DemoSeeder extends Seeder
             $tenants = [];
             foreach ([['Acme Growth Studio', 'acme-demo', 'Professional services'], ['BrightPath Academy', 'brightpath-demo', 'Education']] as [$name, $slug, $industry]) {
                 $tenant = Tenant::firstOrCreate(['slug' => $slug], ['name' => $name, 'industry' => $industry, 'is_demo' => true]);
+                if ($tenant->wasRecentlyCreated) {
+                    $tenant->trial_ends_at = now()->addDays(14);
+                    $tenant->save();
+                }
                 if (! $tenant->is_demo) {
                     throw new RuntimeException('Refusing to seed into a non-demo business.');
                 }
@@ -53,6 +61,9 @@ class DemoSeeder extends Seeder
             }
             foreach ($tenants as $index => $tenant) {
                 app(TenantContext::class)->run($tenant, function () use ($index) {
+                    KnowledgeEntry::firstOrCreate(['title' => 'Demo opening hours'], ['kind' => 'faq', 'content' => 'Fictional demo business opening hours: Monday to Friday, 9am to 6pm. This information is for testing only.', 'approved' => true]);
+                    Campaign::firstOrCreate(['name' => 'Demo welcome draft'], ['subject' => 'Welcome to our business', 'body' => 'Hello {{name}}, thank you for your interest. What would you like to learn about our services?', 'segment' => 'all']);
+                    Workflow::firstOrCreate(['name' => 'Demo lead follow-up'], ['trigger' => 'contact.created', 'steps' => [['type' => 'task', 'value' => 'Review the new lead'], ['type' => 'delay', 'value' => '60'], ['type' => 'score', 'value' => 'warm']], 'active' => false]);
                     $companyNames = $index === 0 ? ['Northstar Realty', 'Bloom Commerce', 'Evergreen Consulting'] : ['Learning Tree School', 'Future Skills Institute', 'Campus Partners'];
                     $companies = collect($companyNames)->map(fn ($name) => Company::firstOrCreate(['name' => $name], ['website' => 'https://example.com']));
                     $names = $index === 0 ? ['Ananya Sharma', 'Vikram Patel', 'Ishita Kapoor', 'Kabir Sethi', 'Diya Menon', 'Arjun Verma', 'Zoya Ali', 'Rahul Das', 'Meera Iyer', 'Dev Malhotra', 'Sara Thomas', 'Aditi Roy'] : ['Nisha Joshi', 'Omar Khan', 'Tara Bose', 'Ravi Kumar', 'Anika Gupta', 'Sahil Rao'];
@@ -77,6 +88,8 @@ class DemoSeeder extends Seeder
                     }
                 });
             }
+            Plan::firstOrCreate(['name' => 'Starter', 'interval' => 'monthly'], ['price_paise' => 149900, 'monthly_messages' => 1000, 'contact_limit' => 10000]);
+            Plan::firstOrCreate(['name' => 'Growth', 'interval' => 'yearly'], ['price_paise' => 1499900, 'monthly_messages' => 10000, 'contact_limit' => 100000]);
         });
     }
 

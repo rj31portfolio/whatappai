@@ -1,12 +1,16 @@
 <?php
+
 namespace App\Http\Controllers;
 
-use App\Models\{Contact, Integration, MessageTemplate};
+use App\Models\Contact;
+use App\Models\Integration;
+use App\Models\MessageTemplate;
+use App\Services\Audit;
+use App\Services\Integrations\ProviderException;
 use App\Services\Integrations\ProviderHttp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class IntegrationController extends Controller
 {
@@ -15,6 +19,7 @@ class IntegrationController extends Controller
     public function index()
     {
         Gate::authorize('viewAny', Contact::class);
+
         return view('modules.integrations', ['integrations' => Integration::get()->keyBy('provider'), 'providers' => self::PROVIDERS]);
     }
 
@@ -32,12 +37,17 @@ class IntegrationController extends Controller
         $integration = Integration::firstOrNew(['provider' => $provider]);
         $secrets = $integration->credentials ?? [];
         foreach (['api_key', 'webhook_secret', 'verify_token'] as $key) {
-            if (! empty($data[$key])) { $secrets[$key] = $data[$key]; }
+            if (! empty($data[$key])) {
+                $secrets[$key] = $data[$key];
+            }
             unset($data[$key]);
         }
-        if (empty($secrets['api_key'])) { return back()->withErrors(['api_key' => 'An API key is required for the first configuration.']); }
+        if (empty($secrets['api_key'])) {
+            return back()->withErrors(['api_key' => 'An API key is required for the first configuration.']);
+        }
         $integration->fill(['public_id' => $integration->public_id ?? (string) Str::uuid(), 'credentials' => $secrets, 'config' => $data, 'status' => 'not_connected', 'last_error' => null])->save();
-        \App\Services\Audit::record('integration.configured', $integration);
+        Audit::record('integration.configured', $integration);
+
         return back()->with('status', 'Configuration saved encrypted. Test the connection before sending.');
     }
 
@@ -57,17 +67,23 @@ class IntegrationController extends Controller
             $config = $integration->config;
             if (in_array($integration->provider, ['openai', 'deepseek', 'claude'], true)) {
                 $models = collect($result['data'] ?? [])->pluck('id')->all();
-                if (! in_array($config['model'], $models, true)) { throw new \App\Services\Integrations\ProviderException('Configured model is not available to this API key.'); }
+                if (! in_array($config['model'], $models, true)) {
+                    throw new ProviderException('Configured model is not available to this API key.');
+                }
                 $config['available_models'] = array_slice($models, 0, 100);
             }
             if ($integration->provider === 'resend') {
                 $domain = Str::after($config['from_email'], '@');
-                if (! collect($result['data'] ?? [])->contains(fn ($d) => ($d['name'] ?? '') === $domain && ($d['status'] ?? '') === 'verified')) { throw new \App\Services\Integrations\ProviderException('Verify the sending domain in Resend first. The key needs domain-read permission for this test.'); }
+                if (! collect($result['data'] ?? [])->contains(fn ($d) => ($d['name'] ?? '') === $domain && ($d['status'] ?? '') === 'verified')) {
+                    throw new ProviderException('Verify the sending domain in Resend first. The key needs domain-read permission for this test.');
+                }
             }
             $integration->update(['status' => 'connected', 'last_error' => null, 'tested_at' => now(), 'config' => $config]);
+
             return back()->with('status', 'Provider connection verified.');
-        } catch (\App\Services\Integrations\ProviderException $e) {
+        } catch (ProviderException $e) {
             $integration->update(['status' => 'error', 'last_error' => $e->getMessage(), 'tested_at' => now()]);
+
             return back()->withErrors(['connection' => $e->getMessage()]);
         }
     }
@@ -76,6 +92,7 @@ class IntegrationController extends Controller
     {
         Gate::authorize('manage-settings');
         $integration->update(['credentials' => [], 'status' => 'not_connected', 'last_error' => null]);
+
         return back()->with('status', 'Integration disconnected and credentials removed.');
     }
 
@@ -89,6 +106,7 @@ class IntegrationController extends Controller
             // Parameterized templates require explicit parameter mapping and cannot be sent by this UI.
             MessageTemplate::updateOrCreate(['channel' => 'whatsapp', 'name' => $template['name']], ['language' => $template['language'], 'body' => $body, 'approval_status' => str_contains($body, '{{') ? 'PARAMETERS_REQUIRED' : $template['status']]);
         }
+
         return back()->with('status', 'Up to 100 Meta templates synchronized. Templates requiring parameters are blocked until mapped.');
     }
 }

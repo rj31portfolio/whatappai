@@ -187,7 +187,7 @@ return new class extends Migration
             $t->string('email');
             $t->string('role', 30);
             $t->string('token_hash', 64)->unique();
-            $t->timestamp('expires_at');
+            $t->dateTime('expires_at');
             $t->timestamp('accepted_at')->nullable();
         });
     }

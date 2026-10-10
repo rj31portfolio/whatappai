@@ -18,9 +18,14 @@
             @foreach(['dashboard' => ['◈', 'Overview'], 'contacts.index' => ['◎', 'Contacts'], 'companies.index' => ['▣', 'Companies'], 'pipeline' => ['▥', 'Sales pipeline'], 'tasks.index' => ['☑', 'Follow-ups'], 'integrations' => ['⌘', 'Integrations'], 'activity' => ['◷', 'Activity log']] as $route => [$icon, $label])
                 <a href="{{ route($route) }}" class="nav-link {{ request()->routeIs($route) || ($route === 'contacts.index' && request()->routeIs('contacts.*')) ? 'active' : '' }}"><span aria-hidden="true">{{ $icon }}</span>{{ $label }}</a>
             @endforeach
+            @foreach(['inbox' => 'Shared inbox', 'campaigns' => 'Email campaigns', 'knowledge' => 'AI knowledge', 'ai' => 'AI assistant', 'workflows' => 'Automations', 'analytics' => 'Analytics'] as $route => $label)<a class="nav-link {{ request()->routeIs($route) ? 'active' : '' }}" href="{{ route($route) }}"><span aria-hidden="true">◇</span>{{ $label }}</a>@endforeach
+            @can('manage-settings')<a class="nav-link" href="{{ route('settings') }}"><span aria-hidden="true">⚙</span> Business settings</a>@endcan
+            @can('manage-team')<a class="nav-link" href="{{ route('team') }}"><span aria-hidden="true">◎</span> Team</a>@endcan
+            @can('manage-billing')<a class="nav-link" href="{{ route('billing') }}"><span aria-hidden="true">▣</span> Billing</a>@endcan
+            <a class="nav-link" href="{{ route('account') }}"><span aria-hidden="true">○</span> My account</a>
             @can('super-admin')<a class="nav-link" href="{{ route('admin') }}"><span aria-hidden="true">⚙</span> Super Admin</a>@endcan
         </nav>
-        <div class="sidebar-footer"><span class="pill">PHASE 1</span><h3>A clearer view of growth.</h3><p>Your contacts, pipeline and next steps, together.</p><a href="{{ route('integrations') }}">Explore integrations →</a></div>
+        <div class="sidebar-footer"><span class="pill">GROWTH WORKSPACE</span><h3>A clearer view of growth.</h3><p>Your contacts, pipeline and next steps, together.</p><a href="{{ route('integrations') }}">Manage integrations →</a></div>
         <div class="profile"><span class="avatar">{{ mb_substr(auth()->user()->name, 0, 1) }}</span><div><strong>{{ auth()->user()->name }}</strong><small>{{ app(\App\Tenancy\TenantContext::class)->role?->label() ?? 'Super Admin' }}</small></div></div>
     </aside>
     <div class="main-shell">
@@ -34,7 +39,7 @@
             </div>
         </header>
         <main id="main">
-            @if($tenant?->is_demo)<div class="demo-banner"><span class="status-dot"></span> Demo workspace <span>·</span> Sample records for testing. No external messages or payments.</div>@endif
+            @if($tenant?->is_demo)<div class="demo-banner"><span class="status-dot"></span> Demo workspace <span>·</span> Sample CRM records. External calls require configured provider credentials.</div>@endif
             @if(session('status'))<div class="notice" role="status">{{ session('status') }}</div>@endif
             @if($errors->any())<div class="error" role="alert"><strong>Please check your input.</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
             {{ $slot }}
