@@ -15,6 +15,7 @@ test('dashboard, Livewire search, tenant switching and mobile layout', async ({ 
     await expect(page.getByRole('heading', { name: 'Make room for growth.' })).toBeVisible();
     await page.screenshot({ path: 'test-results/dashboard-desktop.png', fullPage: true });
     await page.getByRole('link', { name: 'Contacts', exact: true }).click();
+    await page.waitForFunction(() => window.Livewire?.all().length > 0);
     const response = page.waitForResponse(r => r.request().method() === 'POST' && r.url().includes('livewire'));
     await page.getByLabel('Search contacts').fill('Ananya');
     expect((await response).status()).toBe(200);

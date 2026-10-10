@@ -15,6 +15,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
+use Livewire\Mechanisms\HandleRequests\HandleRequests;
 use Tests\TestCase;
 
 class CrmSecurityTest extends TestCase
@@ -224,5 +225,26 @@ class CrmSecurityTest extends TestCase
         $counts = [DB::table('contacts')->count(), DB::table('deals')->count(), DB::table('tasks')->count(), User::count()];
         $this->seed(DemoSeeder::class);
         $this->assertSame($counts, [DB::table('contacts')->count(), DB::table('deals')->count(), DB::table('tasks')->count(), User::count()]);
+    }
+
+    public function test_livewire_http_updates_recheck_membership_and_do_not_reuse_old_business_context(): void
+    {
+        $html = $this->loginAs($this->owner)->get('/contacts')->assertOk()->getContent();
+        preg_match('/wire:snapshot="([^"]+)"/', $html, $matches);
+        $this->assertNotEmpty($matches);
+        $snapshot = html_entity_decode($matches[1], ENT_QUOTES);
+        $endpoint = app(HandleRequests::class)->getUpdateUri();
+        $payload = ['components' => [['snapshot' => $snapshot, 'updates' => ['search' => 'Alice'], 'calls' => []]]];
+        $this->postJson($endpoint, $payload, ['X-Livewire' => 'true'])->assertOk();
+
+        $this->other->users()->attach($this->owner, ['role' => Role::BusinessOwner->value]);
+        $this->withSession(['tenant_id' => $this->other->id]);
+        $payload['components'][0]['updates']['search'] = 'Private';
+        $response = $this->postJson($endpoint, $payload, ['X-Livewire' => 'true'])->assertOk();
+        $this->assertStringContainsString('Private B', $response->json('components.0.effects.html'));
+        $this->assertStringNotContainsString('Alice A', $response->json('components.0.effects.html'));
+
+        $this->other->users()->detach($this->owner);
+        $this->postJson($endpoint, $payload, ['X-Livewire' => 'true'])->assertForbidden();
     }
 }

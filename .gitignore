@@ -21,6 +21,7 @@
 /vendor
 /storage/composer/
 /storage/composer-cache/
+/storage/npm-cache/
 /playwright-report/
 /test-results/
 Homestead.json
