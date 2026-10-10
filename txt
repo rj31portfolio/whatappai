@@ -1,0 +1,236 @@
+# MASTER DEVELOPMENT PROMPT — AI BUSINESS GROWTH CRM SAAS
+
+Act as a senior SaaS architect, Laravel developer, database engineer, AI integration specialist, CRM product designer, and security engineer.
+
+## Project objective
+
+Build a production-oriented, multi-tenant SaaS platform that provides WhatsApp automation, AI-powered CRM, email marketing, automated email replies, lead management, business intelligence, marketing automation, and recurring subscription billing.
+
+The platform must be suitable for different industries, including ecommerce, education, real estate, agencies, healthcare administration, professional services, and local businesses.
+
+## 1. Technology
+
+- Laravel with PHP and MySQL.
+- Responsive, accessible dashboard.
+- Use Blade and Livewire or a well-structured React frontend.
+- Laravel authentication, authorization policies, validation, queues, scheduled jobs, and database migrations.
+- Redis queues where supported.
+- Secure REST API and webhook architecture.
+- Razorpay integration.
+- Configurable integrations for WhatsApp Cloud API, email providers, DeepSeek, OpenAI, and Anthropic Claude.
+
+## 2. User roles
+
+Implement:
+- Super Admin.
+- Agency Owner.
+- Business Owner.
+- Business Manager.
+- Sales Agent.
+- Marketing Manager.
+- Read-only Analyst.
+
+Enforce permissions on the server for every protected operation.
+
+## 3. Multi-tenant architecture
+
+Each business must have isolated:
+- Contacts and companies.
+- Conversations and message histories.
+- Campaigns and templates.
+- Products, services, prices, and FAQs.
+- AI knowledge and system instructions.
+- Provider credentials and usage records.
+- Reports, integrations, and subscription details.
+
+Implement tenant-scoped database queries, authorization policies, tenant isolation tests, and secure file access. Never trust a tenant ID supplied by the frontend without validating membership and authorization.
+
+## 4. WhatsApp CRM
+
+Implement the official WhatsApp Business Cloud API integration:
+- Business connection and configuration.
+- Webhook verification and signature validation.
+- Inbound and outbound message processing.
+- Shared inbox and human handover.
+- Contact assignment, tags, notes, and conversation status.
+- Approved template management.
+- Delivery status tracking.
+- Consent records and opt-out management.
+- Retries, duplicate-event protection, error logs, and rate limits.
+
+Never use unofficial bulk messaging or bypass WhatsApp policies.
+
+## 5. Email marketing
+
+Implement:
+- Provider configuration and connection testing.
+- Contact import with validation and consent tracking.
+- Segmentation and suppression lists.
+- Campaign builder and reusable templates.
+- AI-generated copy and subject lines.
+- Scheduled sending through queues.
+- Automated welcome, nurture, and follow-up sequences.
+- Inbound email processing through supported provider webhooks or integrations.
+- AI reply suggestions and configurable automatic replies.
+- Unsubscribe links, bounce handling, sender authentication guidance, and campaign analytics.
+
+Do not send marketing email to contacts who have opted out.
+
+## 6. AI provider gateway
+
+Create a common interface with separate adapters for:
+- DeepSeek.
+- OpenAI.
+- Anthropic Claude.
+
+Allow authorized users to select providers and available models, test credentials, configure fallback providers, set monthly budgets, and inspect token usage and estimated costs.
+
+Encrypt API credentials at rest. Keep secrets server-side. Redact credentials from logs. Implement timeout handling, rate limiting, retries, and provider-specific error handling.
+
+If a provider fails, use a fallback only when configured and permitted by the business's budget. Otherwise return a safe error and provide human handover.
+
+## 7. Business knowledge and AI responses
+
+Let business owners add:
+- Business profile and industry.
+- Products, services, prices, and policies.
+- FAQs and approved response examples.
+- Website pages and uploaded documents.
+- Opening hours and service areas.
+- Booking and escalation rules.
+
+Implement retrieval-based knowledge grounding. The AI must answer from relevant approved business data, avoid inventing information, and escalate unknown questions.
+
+Add language selection, configurable tone, conversation summaries, lead qualification, and response confidence rules.
+
+Require explicit confirmation for sensitive or irreversible actions, including refunds, price changes, and external commitments.
+
+## 8. CRM and sales pipeline
+
+Build:
+- Contacts, companies, and custom fields.
+- Lead source tracking and duplicate detection.
+- Hot, warm, and cold lead scoring with explainable rules.
+- Pipeline stages and deal values.
+- Follow-up tasks, reminders, and appointments.
+- Sales activity history.
+- Conversation summaries.
+- Team assignments and performance reports.
+
+## 9. Automation builder
+
+Build a visual workflow system with:
+- Triggers.
+- Conditions.
+- Delays.
+- Actions.
+- Branching.
+- Scheduling.
+- Retry and failure handling.
+- Execution history.
+
+Support workflows such as new lead → AI qualification → CRM entry → approved WhatsApp reply → email follow-up → sales assignment.
+
+Prevent duplicate sends and infinite workflow loops. Check consent, messaging windows, business hours, plan limits, and frequency caps before sending.
+
+## 10. Business analytics
+
+Provide:
+- Leads by source and campaign.
+- Response time and lead conversion.
+- Sales pipeline and won revenue.
+- Email delivery, bounce, click, and conversion metrics.
+- WhatsApp delivery and response metrics where provided.
+- AI token usage and cost estimates.
+- Subscription income and renewal rates.
+- Campaign spend and attributable revenue where reliable tracking exists.
+- Downloadable CSV reports.
+- Scheduled daily, weekly, and monthly summaries.
+
+Clearly distinguish measured results from estimates and AI-generated recommendations.
+
+## 11. Subscription billing
+
+Integrate Razorpay using server-side API calls and verified webhooks.
+
+Implement:
+- Monthly and annual plans.
+- Trials, coupons, and optional setup fees.
+- Feature and usage entitlements.
+- Subscription status and renewal dates.
+- Payment history and invoices.
+- Upgrade, downgrade, cancellation, and failed-payment handling.
+- Configurable grace periods.
+- Expiry countdown.
+- Payment notifications.
+- Usage restrictions when a paid subscription expires.
+
+Verify payment status server-side. Validate webhook signatures and process duplicate webhook events idempotently. Never activate a paid plan based only on a frontend success redirect.
+
+## 12. Super Admin
+
+Provide:
+- Business and user management.
+- Plan and entitlement management.
+- Global provider configuration.
+- Usage and estimated-cost monitoring.
+- Payment and subscription reports.
+- Feature flags and maintenance mode.
+- Integration health checks.
+- Error logs and audit trails.
+- Support tools and controlled account suspension.
+
+Do not expose business credentials or unrestricted private customer data in ordinary admin screens.
+
+## 13. Business Owner dashboard
+
+Provide:
+- Overview and KPIs.
+- Shared inbox.
+- CRM and sales pipeline.
+- WhatsApp settings.
+- Email campaigns.
+- Automation builder.
+- AI knowledge manager.
+- AI provider settings.
+- Contacts and segmentation.
+- Analytics and exports.
+- Team management.
+- Billing, usage, and renewal status.
+
+## 14. Security and reliability
+
+Implement:
+- Role-based access control.
+- CSRF protection, input validation, output escaping, and secure sessions.
+- Encrypted credentials.
+- Rate limiting and API authentication.
+- Tenant isolation and authorization tests.
+- Webhook signature verification.
+- Audit logs.
+- Database backups and restore documentation.
+- Queue monitoring and failed-job handling.
+- Privacy controls, data retention, and deletion workflows.
+- Secure upload validation.
+- Environment variables for secrets.
+
+## 15. Development requirements
+
+First inspect the existing repository and preserve its working architecture, theme, and features.
+
+Then:
+1. Produce an architecture diagram and implementation plan.
+2. Define database entities, migrations, indexes, and tenant relationships.
+3. Implement authentication and tenant isolation.
+4. Build functional CRM and dashboards using seeded demo data.
+5. Implement the AI provider gateway and knowledge system.
+6. Integrate WhatsApp and email using sandbox or test configurations.
+7. Build automation workflows and reporting.
+8. Integrate Razorpay in test mode.
+9. Add integration tests, security tests, and error handling.
+10. Document production setup, queues, scheduler, HTTPS, environment variables, webhook URLs, backups, and deployment.
+
+Do not generate fake integrations or hardcode successful API responses. Every feature must have real backend logic, validation, persistence, authorization, loading states, error states, and tests. If an external API credential is missing, clearly show that the integration is not connected and provide a configuration screen.
+
+Start with the architecture and Phase 1 implementation. Do not overwrite existing files or change the existing design unnecessarily. Deliver maintainable, modular code with clear setup instructions.
+in that use mysql database with also demo data to testing 
