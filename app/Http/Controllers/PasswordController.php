@@ -35,6 +35,7 @@ class PasswordController extends Controller
         $data = $request->validate(['token' => 'required|string', 'email' => 'required|email', 'password' => ['required', 'confirmed', PasswordRule::min(12)->mixedCase()->numbers()->symbols()]]);
         $status = Password::reset($data, function (User $user, string $password) {
             $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
+            $user->tokens()->delete();
             DB::table('sessions')->where('user_id', $user->id)->delete();
             event(new PasswordReset($user));
         });

@@ -20,6 +20,7 @@
             @endforeach
             @foreach(['inbox' => 'Shared inbox', 'campaigns' => 'Email campaigns', 'knowledge' => 'AI knowledge', 'ai' => 'AI assistant', 'workflows' => 'Automations', 'analytics' => 'Analytics'] as $route => $label)<a class="nav-link {{ request()->routeIs($route) ? 'active' : '' }}" href="{{ route($route) }}"><span aria-hidden="true">◇</span>{{ $label }}</a>@endforeach
             @can('manage-settings')<a class="nav-link" href="{{ route('settings') }}"><span aria-hidden="true">⚙</span> Business settings</a>@endcan
+            @can('manage-settings')<a class="nav-link" href="{{ route('api-access') }}"><span aria-hidden="true">⌘</span> API access</a>@endcan
             @can('manage-team')<a class="nav-link" href="{{ route('team') }}"><span aria-hidden="true">◎</span> Team</a>@endcan
             @can('manage-billing')<a class="nav-link" href="{{ route('billing') }}"><span aria-hidden="true">▣</span> Billing</a>@endcan
             <a class="nav-link" href="{{ route('account') }}"><span aria-hidden="true">○</span> My account</a>

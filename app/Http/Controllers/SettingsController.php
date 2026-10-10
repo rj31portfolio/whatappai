@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Contact;
 use App\Services\Audit;
 use App\Tenancy\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rules\Password;
 
@@ -41,10 +43,41 @@ class SettingsController extends Controller
         return back()->with('status', 'Business settings saved.');
     }
 
+    public function tokens()
+    {
+        Gate::authorize('manage-settings');
+
+        return view('modules.api', ['tokens' => auth()->user()->tokens()->where('tenant_id', app(TenantContext::class)->id())->latest()->get()]);
+    }
+
+    public function token(Request $request)
+    {
+        Gate::authorize('manage-settings');
+        $data = $request->validate(['name' => 'required|string|max:100', 'write' => 'sometimes|boolean']);
+        if ($request->boolean('write')) {
+            Gate::authorize('create', Contact::class);
+        }
+        $token = $request->user()->createToken($data['name'], $request->boolean('write') ? ['crm:read', 'crm:write'] : ['crm:read'], now()->addDays(90));
+        $token->accessToken->tenant_id = app(TenantContext::class)->id();
+        $token->accessToken->save();
+
+        return back()->with('api_token', $token->plainTextToken)->with('status', 'Token created. Copy it now; it will not be displayed again.');
+    }
+
+    public function revoke(int $id)
+    {
+        Gate::authorize('manage-settings');
+        auth()->user()->tokens()->where('tenant_id', app(TenantContext::class)->id())->findOrFail($id)->delete();
+
+        return back()->with('status', 'API token revoked.');
+    }
+
     public function password(Request $request)
     {
         $data = $request->validate(['current_password' => 'required|current_password', 'password' => ['required', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()]]);
         $request->user()->update(['password' => $data['password']]);
+        $request->user()->tokens()->delete();
+        DB::table('sessions')->where('user_id', $request->user()->id)->where('id', '!=', $request->session()->getId())->delete();
         $request->session()->regenerate();
 
         return back()->with('status', 'Password changed.');

@@ -108,6 +108,21 @@ class CrmController extends Controller
         return back()->with('status', 'Company created.');
     }
 
+    public function updateCompany(Request $request, Company $company)
+    {
+        Gate::authorize('update', $company);
+        $data = $request->validate(['name' => ['required', 'string', 'max:160', Rule::unique('companies')->where('tenant_id', app(TenantContext::class)->id())->ignore($company->id)], 'website' => 'nullable|url:http,https|max:255']);
+        DB::transaction(function () use ($company, $data) { $company->update($data); Audit::record('company.updated', $company); });
+        return back()->with('status', 'Company updated.');
+    }
+
+    public function destroyCompany(Company $company)
+    {
+        Gate::authorize('delete', $company);
+        DB::transaction(function () use ($company) { Contact::where('company_id', $company->id)->update(['company_id' => null]); Audit::record('company.deleted', $company); $company->delete(); });
+        return back()->with('status', 'Company deleted. Contacts retained as independent.');
+    }
+
     public function pipeline()
     {
         Gate::authorize('viewAny', Deal::class);
@@ -131,7 +146,7 @@ class CrmController extends Controller
     public function updateDeal(Request $request, Deal $deal)
     {
         Gate::authorize('update', $deal);
-        $data = $request->validate(['tenant_id' => ['prohibited'], 'stage' => ['required', Rule::in(Deal::STAGES)]]);
+        $data = $request->validate(['tenant_id' => ['prohibited'], 'stage' => ['required', Rule::in(Deal::STAGES)], 'title' => 'sometimes|required|string|max:160', 'amount' => 'sometimes|required|numeric|min:0|max:999999999999.99|decimal:0,2', 'expected_close_at' => 'nullable|date_format:Y-m-d']);
         DB::transaction(function () use ($deal, $data) {
             $deal->update($data);
             Audit::record('deal.stage_changed', $deal);
@@ -147,17 +162,41 @@ class CrmController extends Controller
         return view('tasks', ['tasks' => Task::with('contact')->orderByRaw('completed_at IS NOT NULL')->orderBy('due_at')->paginate(20), 'contacts' => Contact::orderBy('name')->get()]);
     }
 
+    public function destroyDeal(Deal $deal)
+    {
+        Gate::authorize('delete', $deal);
+        DB::transaction(function () use ($deal) { Audit::record('deal.deleted', $deal); $deal->delete(); });
+        return back()->with('status', 'Deal deleted.');
+    }
+
     public function storeTask(Request $request)
     {
         Gate::authorize('create', Task::class);
         $data = $request->validate([
             'tenant_id' => ['prohibited'], 'contact_id' => $this->contactRules(),
-            'title' => ['required', 'string', 'max:160'], 'due_at' => ['required', 'date_format:Y-m-d\TH:i'],
+            'title' => ['required', 'string', 'max:160'], 'due_at' => ['required', 'date_format:Y-m-d\TH:i'], 'kind' => 'sometimes|required|in:task,appointment',
         ]);
         $data['due_at'] = Carbon::createFromFormat('Y-m-d\TH:i', $data['due_at'], app(TenantContext::class)->tenant->timezone)->utc();
         DB::transaction(fn () => Audit::record('task.created', Task::create($data)));
 
         return back()->with('status', 'Follow-up scheduled.');
+    }
+
+    public function updateTask(Request $request, Task $task)
+    {
+        Gate::authorize('update', $task);
+        $data = $request->validate(['title' => 'required|string|max:160', 'due_at' => 'required|date_format:Y-m-d\TH:i', 'kind' => 'required|in:task,appointment']);
+        $data['due_at'] = Carbon::createFromFormat('Y-m-d\TH:i', $data['due_at'], app(TenantContext::class)->tenant->timezone)->utc();
+        $data['reminded_at'] = null;
+        DB::transaction(function () use ($task, $data) { $task->update($data); Audit::record('task.updated', $task); });
+        return back()->with('status', 'Task or appointment updated.');
+    }
+
+    public function destroyTask(Task $task)
+    {
+        Gate::authorize('delete', $task);
+        DB::transaction(function () use ($task) { Audit::record('task.deleted', $task); $task->delete(); });
+        return back()->with('status', 'Task deleted.');
     }
 
     public function completeTask(Task $task)

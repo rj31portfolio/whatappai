@@ -10,7 +10,7 @@ class Task extends Model
 {
     use BelongsToTenant;
 
-    protected $fillable = ['title', 'contact_id', 'due_at', 'completed_at'];
+    protected $fillable = ['title', 'contact_id', 'due_at', 'completed_at', 'kind', 'reminded_at'];
 
     protected function casts(): array
     {

@@ -38,6 +38,19 @@ class AnalyticsController extends Controller
         return Storage::disk('local')->download($export->file_path, 'business-report.csv');
     }
 
+    public function reminders()
+    {
+        Gate::authorize('viewAny', Contact::class);
+        return view('modules.reminders', ['reminders' => \App\Models\Reminder::latest()->paginate(30)]);
+    }
+
+    public function readReminder(\App\Models\Reminder $reminder)
+    {
+        Gate::authorize('manage-inbox');
+        $reminder->update(['read_at' => now()]);
+        return back()->with('status', 'Reminder marked read for the team.');
+    }
+
     public function download(ReportExport $export)
     {
         Gate::authorize('export-crm');

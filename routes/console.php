@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Schedule;
 Artisan::command('growth:tick', function () {
     foreach (Tenant::where('suspended', false)->get() as $tenant) {
         app(TenantContext::class)->run($tenant, function () use ($tenant) {
+            foreach (\App\Models\Task::whereNull('completed_at')->whereNull('reminded_at')->where('due_at', '<=', now()->addMinutes(15))->get() as $task) {
+                \App\Models\Reminder::updateOrCreate(['task_id' => $task->id], ['title' => $task->title, 'read_at' => null]);
+                $task->update(['reminded_at' => now()]);
+            }
             foreach (Campaign::where('status', 'scheduled')->where('scheduled_at', '<=', now())->get() as $campaign) {
                 RunCampaign::dispatch($tenant->id, $campaign->id);
             }
