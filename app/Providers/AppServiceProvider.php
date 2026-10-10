@@ -2,6 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\Company;
+use App\Models\Contact;
+use App\Models\Deal;
+use App\Models\Task;
+use App\Models\User;
+use App\Policies\CrmPolicy;
+use App\Tenancy\TenantContext;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,7 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->scoped(\App\Tenancy\TenantContext::class);
+        $this->app->scoped(TenantContext::class);
     }
 
     /**
@@ -19,17 +30,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        foreach ([\App\Models\Contact::class, \App\Models\Company::class, \App\Models\Deal::class, \App\Models\Task::class] as $model) {
-            \Illuminate\Support\Facades\Gate::policy($model, \App\Policies\CrmPolicy::class);
+        foreach ([Contact::class, Company::class, Deal::class, Task::class] as $model) {
+            Gate::policy($model, CrmPolicy::class);
         }
-        \Illuminate\Support\Facades\Gate::define('export-crm', function (\App\Models\User $user) {
-            return \Illuminate\Support\Facades\Gate::forUser($user)->allows('viewAny', \App\Models\Contact::class)
-                && app(\App\Tenancy\TenantContext::class)->role->canExport();
+        Gate::define('export-crm', function (User $user) {
+            return Gate::forUser($user)->allows('viewAny', Contact::class)
+                && app(TenantContext::class)->role->canExport();
         });
-        \Illuminate\Support\Facades\Gate::define('super-admin', fn (\App\Models\User $user) => $user->is_super_admin);
-        \Illuminate\Support\Facades\RateLimiter::for('login', fn (\Illuminate\Http\Request $request) => [
-            \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip()),
-            \Illuminate\Cache\RateLimiting\Limit::perMinute(30)->by($request->ip()),
+        Gate::define('super-admin', fn (User $user) => $user->is_super_admin);
+        RateLimiter::for('login', fn (Request $request) => [
+            Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip()),
+            Limit::perMinute(30)->by($request->ip()),
         ]);
     }
 }

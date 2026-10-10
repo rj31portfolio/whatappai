@@ -12,6 +12,7 @@ class ContactTable extends Component
     use WithPagination;
 
     public string $search = '';
+
     public string $score = '';
 
     public function updatedSearch(): void
@@ -36,6 +37,7 @@ class ContactTable extends Component
         if ($this->score !== '') {
             $query->where('score', $this->score);
         }
+
         return view('livewire.contact-table', ['contacts' => $query->paginate(15)]);
     }
 }

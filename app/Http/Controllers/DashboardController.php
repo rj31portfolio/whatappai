@@ -2,7 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{AuditLog, Contact, Deal, Task, Tenant, User};
+use App\Models\AuditLog;
+use App\Models\Contact;
+use App\Models\Deal;
+use App\Models\Task;
+use App\Models\Tenant;
+use App\Models\User;
+use App\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -10,7 +16,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        if (! app(\App\Tenancy\TenantContext::class)->tenant && auth()->user()->is_super_admin) {
+        if (! app(TenantContext::class)->tenant && auth()->user()->is_super_admin) {
             return redirect()->route('admin');
         }
         Gate::authorize('viewAny', Contact::class);

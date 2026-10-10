@@ -3,7 +3,12 @@
 namespace Database\Seeders;
 
 use App\Enums\Role;
-use App\Models\{Company, Contact, Deal, Task, Tenant, User};
+use App\Models\Company;
+use App\Models\Contact;
+use App\Models\Deal;
+use App\Models\Task;
+use App\Models\Tenant;
+use App\Models\User;
 use App\Services\ContactScoring;
 use App\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
@@ -83,6 +88,7 @@ class DemoSeeder extends Seeder
             if ($existing->tenants()->where('is_demo', false)->exists()) {
                 throw new RuntimeException('Demo identity is attached to a non-demo business.');
             }
+
             return $existing;
         }
 

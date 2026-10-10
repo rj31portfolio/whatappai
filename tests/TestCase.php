@@ -12,6 +12,7 @@ abstract class TestCase extends BaseTestCase
         if (config('database.default') === 'mysql' && config('database.connections.mysql.database') !== 'growthdesk_testing') {
             throw new \RuntimeException('MySQL tests require the isolated growthdesk_testing database.');
         }
+
         return $app;
     }
 }

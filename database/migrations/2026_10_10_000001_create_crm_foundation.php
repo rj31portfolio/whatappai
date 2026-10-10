@@ -1,5 +1,8 @@
 <?php
 
+use App\Enums\Role;
+use App\Models\Contact;
+use App\Models\Deal;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -23,7 +26,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->enum('role', array_column(\App\Enums\Role::cases(), 'value'));
+            $table->enum('role', array_column(Role::cases(), 'value'));
             $table->unique(['tenant_id', 'user_id']);
             $table->timestamps();
         });
@@ -44,8 +47,8 @@ return new class extends Migration
             $table->string('name', 160);
             $table->string('email')->nullable();
             $table->string('phone', 20)->nullable();
-            $table->enum('source', \App\Models\Contact::SOURCES)->default('other');
-            $table->enum('score', \App\Models\Contact::SCORES)->default('cold');
+            $table->enum('source', Contact::SOURCES)->default('other');
+            $table->enum('score', Contact::SCORES)->default('cold');
             $table->string('score_reason');
             $table->text('notes')->nullable();
             $table->boolean('email_consent')->default(false);
@@ -64,7 +67,7 @@ return new class extends Migration
             $table->foreign(['tenant_id', 'contact_id'])->references(['tenant_id', 'id'])->on('contacts')->cascadeOnDelete();
             $table->string('title', 160);
             $table->decimal('amount', 14, 2);
-            $table->enum('stage', \App\Models\Deal::STAGES)->default('new');
+            $table->enum('stage', Deal::STAGES)->default('new');
             $table->date('expected_close_at')->nullable();
             $table->index(['tenant_id', 'stage']);
             $table->timestamps();

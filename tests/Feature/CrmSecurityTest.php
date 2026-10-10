@@ -3,7 +3,12 @@
 namespace Tests\Feature;
 
 use App\Enums\Role;
-use App\Models\{AuditLog, Company, Contact, Deal, Task, Tenant, User};
+use App\Livewire\ContactTable;
+use App\Models\Company;
+use App\Models\Contact;
+use App\Models\Deal;
+use App\Models\Tenant;
+use App\Models\User;
 use App\Tenancy\TenantContext;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Database\QueryException;
@@ -17,10 +22,15 @@ class CrmSecurityTest extends TestCase
     use RefreshDatabase;
 
     private Tenant $business;
+
     private Tenant $other;
+
     private User $owner;
+
     private User $analyst;
+
     private Contact $contact;
+
     private Contact $foreign;
 
     protected function setUp(): void
@@ -202,7 +212,7 @@ class CrmSecurityTest extends TestCase
         $context->tenant = $this->business;
         $context->role = Role::BusinessOwner;
         Contact::create(['name' => '<script>alert(1)</script>', 'source' => 'other', 'score_reason' => 'Test']);
-        Livewire::actingAs($this->owner)->test(\App\Livewire\ContactTable::class)->assertDontSee('Private B')
+        Livewire::actingAs($this->owner)->test(ContactTable::class)->assertDontSee('Private B')
             ->set('search', 'Alice')->assertSee('Alice A')->assertDontSee('Private B')
             ->set('search', '<script>')->assertSee('&lt;script&gt;', false)->assertDontSee('<script>alert(1)</script>', false);
         $context->clear();

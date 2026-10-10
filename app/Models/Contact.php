@@ -11,6 +11,7 @@ class Contact extends Model
     use BelongsToTenant;
 
     public const SOURCES = ['website', 'referral', 'whatsapp', 'email', 'event', 'other'];
+
     public const SCORES = ['cold', 'warm', 'hot'];
 
     protected $fillable = ['name', 'email', 'phone', 'company_id', 'source', 'score', 'score_reason', 'notes', 'email_consent', 'whatsapp_consent'];

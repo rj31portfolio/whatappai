@@ -10,6 +10,7 @@ use LogicException;
 class TenantContext
 {
     public ?Tenant $tenant = null;
+
     public ?Role $role = null;
 
     public function id(): int
