@@ -38,6 +38,19 @@ class AppServiceProvider extends ServiceProvider
                 && app(TenantContext::class)->role->canExport();
         });
         Gate::define('super-admin', fn (User $user) => $user->is_super_admin);
+        foreach (['settings', 'team', 'billing', 'marketing', 'inbox'] as $capability) {
+            Gate::define('manage-'.$capability, function (User $user) use ($capability) {
+                if (! Gate::forUser($user)->allows('viewAny', Contact::class)) { return false; }
+                $role = app(TenantContext::class)->role;
+                $owners = [\App\Enums\Role::AgencyOwner, \App\Enums\Role::BusinessOwner];
+                return match ($capability) {
+                    'team', 'billing' => in_array($role, $owners, true),
+                    'settings' => in_array($role, [...$owners, \App\Enums\Role::BusinessManager], true),
+                    'marketing' => in_array($role, [...$owners, \App\Enums\Role::BusinessManager, \App\Enums\Role::MarketingManager], true),
+                    'inbox' => $role->canWriteCrm(),
+                };
+            });
+        }
         RateLimiter::for('login', fn (Request $request) => [
             Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip()),
             Limit::perMinute(30)->by($request->ip()),

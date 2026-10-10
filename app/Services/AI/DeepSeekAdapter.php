@@ -1,0 +1,15 @@
+<?php
+namespace App\Services\AI;
+
+use App\Services\Integrations\ProviderHttp;
+
+class DeepSeekAdapter implements AiAdapter
+{
+    public function complete(string $key, string $model, string $system, string $question): array
+    {
+        $data = app(ProviderHttp::class)->request('POST', 'https://api.deepseek.com/chat/completions', ['Authorization' => 'Bearer '.$key], [
+            'model' => $model, 'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $question]], 'max_tokens' => 512,
+        ]);
+        return ['text' => $data['choices'][0]['message']['content'] ?? '', 'input' => $data['usage']['prompt_tokens'] ?? 0, 'output' => $data['usage']['completion_tokens'] ?? 0];
+    }
+}

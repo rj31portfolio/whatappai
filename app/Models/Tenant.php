@@ -11,7 +11,7 @@ class Tenant extends Model
 
     protected function casts(): array
     {
-        return ['is_demo' => 'boolean'];
+        return ['is_demo' => 'boolean', 'suspended' => 'boolean', 'trial_ends_at' => 'datetime', 'settings' => 'array'];
     }
 
     public function users(): BelongsToMany

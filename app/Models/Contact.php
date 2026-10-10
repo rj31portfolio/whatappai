@@ -18,7 +18,7 @@ class Contact extends Model
 
     protected function casts(): array
     {
-        return ['email_consent' => 'boolean', 'whatsapp_consent' => 'boolean'];
+        return ['email_consent' => 'boolean', 'whatsapp_consent' => 'boolean', 'tags' => 'array', 'custom_fields' => 'array'];
     }
 
     public function company(): BelongsTo

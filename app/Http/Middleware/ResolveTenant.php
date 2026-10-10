@@ -27,6 +27,7 @@ class ResolveTenant
                 abort(403, 'Business membership is no longer valid.');
             }
             if ($tenant) {
+                abort_if($tenant->suspended, 403, 'This business is suspended. Contact support.');
                 $context->tenant = $tenant;
                 $context->role = Role::from($tenant->pivot->role);
                 $request->session()->put('tenant_id', $tenant->id);

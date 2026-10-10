@@ -234,3 +234,4 @@ Do not generate fake integrations or hardcode successful API responses. Every fe
 
 Start with the architecture and Phase 1 implementation. Do not overwrite existing files or change the existing design unnecessarily. Deliver maintainable, modular code with clear setup instructions.
 in that use mysql database with also demo data to testing 
+
